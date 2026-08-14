@@ -1,0 +1,14 @@
+# 计算机视觉与图像处理
+opencv-python>=4.6.0
+Pillow>=9.1.0
+
+# 科学计算与物理天文计算
+numpy>=1.21.0
+scipy>=1.7.3
+astropy>=5.0.4
+
+# 深度学习框架 torch>=2.0.0
+torchvision>=0.15.0
+
+# 目标检测 (YOLO11 依赖)
+ultralytics>=8.3.0
