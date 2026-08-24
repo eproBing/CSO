@@ -15,17 +15,17 @@ from ultralytics import YOLO
 
 warnings.filterwarnings("ignore")
 
-# 引入 MobileSAM 子模块路径
+
 sys.path.append("MobileSAM-master")
 sys.path.append("yolo11")
 from mobile_encoder.setup_mobile_sam import setup_model
 from segment_anything import SamPredictor
 
 # ==========================================
-# 第一部分：图像处理与分割辅助函数
+# Part 1
 # ==========================================
 def add_mask(image, mask, alpha=0.5):
-    """将单通道二值掩码以半透明方式叠加到原图"""
+    
     int_mask = (mask.astype(np.uint8) * 255)
     mask_3d = np.dstack((int_mask, int_mask, int_mask))
     mask_area = mask > 0
@@ -35,13 +35,13 @@ def add_mask(image, mask, alpha=0.5):
     return res
 
 def show_box(image, box, color=(0, 255, 0), thickness=2):
-    """在图像上绘制矩形检测框"""
+    
     x0, y0, x1, y1 = map(int, box)
     cv2.rectangle(image, (x0, y0), (x1, y1), color, thickness)
     return image
 
 # ==========================================
-# 第二部分：物理参数反演与业务处理函数
+# Part 2
 # ==========================================
 def process_events(result, time_threshold):
     if len(result) == 0:
@@ -106,7 +106,7 @@ def copy_and_rename_files(result_events, source_image_path):
         target_filename = os.path.join(target_year_dir, new_filename)
         os.makedirs(target_year_dir, exist_ok=True)
 
-        # 使用最新的 Pillow 重新采样常量
+       
         img = Image.open(source_image_path)
         resized_img = img.resize((1920, 1440), resample=Image.Resampling.BICUBIC)
         resized_img.save(target_filename, format="PNG", dpi=(240, 240))
@@ -151,21 +151,21 @@ def typeIIradioSource(t, f, dens_model='Newkirk', Nharmset=2, Nfoldset=1, dates=
     return v1, v2, aa2
 
 # ==========================================
-# 第三部分：连接 YOLO 结果与物理处理业务的桥梁
+# Part 3
 # ==========================================
 def process_physics_from_yolo(yolo_boxes, class_names, image_path):
-    """直接接收 YOLO 提取的边界框，并进行物理参数转换和业务归档"""
+   
     if len(yolo_boxes) == 0:
-        print("未检测到目标，物理处理已跳过。")
+        print("no target")
         return
 
-    # 将 YOLO 坐标直接映射为物理计算需要的数组
+    
     left_array = yolo_boxes[:, 0]
     top_array = yolo_boxes[:, 1]
     right_array = yolo_boxes[:, 2]
     bottom_array = yolo_boxes[:, 3]
     
-    # 根据业务逻辑限制频谱图频率范围的像素上下界
+   
     top_array[top_array < 50] = 50
     bottom_array[bottom_array > 560] = 560
     
@@ -173,7 +173,7 @@ def process_physics_from_yolo(yolo_boxes, class_names, image_path):
     img_name = os.path.basename(image_path)
     name_array = np.array([img_name] * len(yolo_boxes))
     
-    # 物理换算系数
+   
     kt = 15 * 60 / 900
     kf = (600 - 90) / 510
     
@@ -187,7 +187,7 @@ def process_physics_from_yolo(yolo_boxes, class_names, image_path):
     pattern = r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})'
     match = re.search(pattern, img_name)
     if not match:
-        print(f"文件名 {img_name} 不包含标准时间戳格式，无法提取物理时间。")
+        print(f"fail")
         return
         
     base_date_time = datetime.strptime(match.group(0), "%Y-%m-%dT%H-%M-%S")
@@ -204,23 +204,23 @@ def process_physics_from_yolo(yolo_boxes, class_names, image_path):
     R_B = 2 * B / (f_end + f_start)
     yita = -f_range / t_range
     
-    # 构造事件结果数组
+   
     result = np.vstack((numberId, start_time, end_time, type_array, f_start, f_end, B, R_B, yita, name_array)).T
     
-    # 事件合并与去重 (阈值 2 秒)
+  
     unique_events = process_events(result, time_threshold=2)
     result_events = np.array(unique_events)
     
-    # 处理图像归档
+  
     copy_and_rename_files(result_events, image_path)
     
-    # 遍历处理各个射电暴事件的物理数据
+   
     for event in result_events:
         start_time_dt = datetime.strptime(event['start_time'], "%Y-%m-%d %H:%M:%S")
         year = start_time_dt.strftime("%Y")
         date_str = start_time_dt.strftime("%Y%m%d")
         
-        # 若为 typeII 射电暴，则反演激波速度
+       
         if event['event_type'].lower() == 'typeii':
             typeIIoutdir = os.path.join('SpaceWeather/ybfx/product/WARN/SOLAR/RB/CBSM', year)
             os.makedirs(typeIIoutdir, exist_ok=True)
@@ -243,7 +243,7 @@ def process_physics_from_yolo(yolo_boxes, class_names, image_path):
             fname = os.path.join(typeIIoutdir, f"typeII_{dates}_Velocity.json")
             data2jsonf(data, fname)
 
-        # 生成标准的 L4 预警产品 JSON
+       
         start_time_str = event['start_time'].replace(" ", "_").replace(":", "").replace("-", "")
         end_time_str = event['end_time'].replace(" ", "_").replace(":", "").replace("-", "")
         
@@ -266,35 +266,35 @@ def process_physics_from_yolo(yolo_boxes, class_names, image_path):
             "Data": [event]
         }, output_file_path)
 
-    print(f"数据处理与 L4 产品归档已完成，共处理了 {len(result_events)} 个事件。")
+    print(f" {len(result_events)} events")
 
 # ==========================================
-# 第四部分：主执行管线 (YOLO检测 -> SAM分割 -> 物理反演)
+# Part 4
 # ==========================================
 def main():
-    # --- 1. YOLO 目标检测 ---
+    
     yolo_model_path = "./YOLOv10_MobileSAM/weights/best.pt"
     source = "img/SynRadiospec_CSO_2022-11-11T01-27-06UT11_Part.jpg"
     
     if not os.path.exists(source):
-        raise FileNotFoundError(f"未找到输入图像: {source}")
+        raise FileNotFoundError(f"no iamge: {source}")
 
-    print("开始 YOLO 目标检测...")
+    print("start...")
     model = YOLO(yolo_model_path)
     results = model(source)
     res = results[0]
     
-    # 提取检测框与分类信息
+   
     box_locations = res.boxes.xyxy.cpu().numpy()
     class_indices = res.boxes.cls.cpu().numpy().astype(int)
     class_names = np.array([model.names[idx] for idx in class_indices])
 
-    # --- 2. 衔接执行物理与业务数据处理管线 ---
-    print("开始物理参数换算与数据产品归档...")
+   
+   
     process_physics_from_yolo(box_locations, class_names, source)
 
-    # --- 3. MobileSAM 掩码分割生成 ---
-    print("开始 MobileSAM 图像分割...")
+    
+    
     device = "cuda" if torch.cuda.is_available() else "cpu"
     sam_checkpoint = "MobileSAM-master/weights/mobile_sam.pt"
     
@@ -327,7 +327,7 @@ def main():
 
     cv2.imwrite("res.jpg", image_result)
     cv2.imwrite("mask_only.jpg", mask_only_image)
-    print("处理完成！视觉分割掩码已保存至 res.jpg 与 mask_only.jpg")
+    print("done")
 
 if __name__ == "__main__":
     main()
